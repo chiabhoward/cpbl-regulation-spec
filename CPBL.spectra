@@ -1,0 +1,829 @@
+spec CPBL
+
+define maxGame := 60;
+define totalGame := maxGame * 2;
+
+define Afirstwin := 37;
+define Afirstlose := 23;
+define Afirsttie := 0;
+define Bfirstwin := 26;
+define Bfirstlose := 34;
+define Bfirsttie := 0;
+define Cfirstwin := 23;
+define Cfirstlose := 37;
+define Cfirsttie := 0;
+define Dfirstwin := 34;
+define Dfirstlose := 26;
+define Dfirsttie := 0;
+
+define Asecondwin 	:= 27;
+define Asecondlose 	:= 27;
+define Asecondtie 	:= 2;
+define Bsecondwin 	:= 30;
+define Bsecondlose 	:= 26;
+define Bsecondtie 	:= 1;
+define Csecondwin 	:= 29;
+define Csecondlose 	:= 26;
+define Csecondtie 	:= 1;
+define Dsecondwin 	:= 25;
+define Dsecondlose 	:= 32;
+define Dsecondtie 	:= 0;
+
+//define Asecondwin 	:= 29;
+//define Asecondlose 	:= 27;
+//define Asecondtie 	:= 2;
+//define Bsecondwin 	:= 31;
+//define Bsecondlose 	:= 27;
+//define Bsecondtie 	:= 1;
+//define Csecondwin 	:= 30;
+//define Csecondlose 	:= 27;
+//define Csecondtie 	:= 1;
+//define Dsecondlose 	:= 34;
+//define Dsecondwin 	:= 25;
+//define Dsecondtie 	:= 0;
+
+define AWUB := maxGame-Asecondlose-Asecondtie;
+define ALUB := maxGame-Asecondwin-Asecondtie;
+define BWUB := maxGame-Bsecondlose-Bsecondtie;
+define BLUB := maxGame-Bsecondwin-Bsecondtie;
+define CWUB := maxGame-Csecondlose-Csecondtie;
+define CLUB := maxGame-Csecondwin-Csecondtie;
+define DWUB := maxGame-Dsecondlose-Dsecondtie;
+define DLUB := maxGame-Dsecondwin-Dsecondtie;
+
+type StandingAW = Int(Asecondwin..AWUB);
+type StandingAL = Int(Asecondlose..ALUB);
+type StandingBW = Int(Bsecondwin..BWUB);
+type StandingBL = Int(Bsecondlose..BLUB);
+type StandingCW = Int(Csecondwin..CWUB);
+type StandingCL = Int(Csecondlose..CLUB);
+type StandingDW = Int(Dsecondwin..DWUB);
+type StandingDL = Int(Dsecondlose..DLUB);
+
+//type StandingAW = Int(25..35);
+//type StandingAL = Int(25..35);
+//type StandingBW = Int(25..35);
+//type StandingBL = Int(25..35);
+//type StandingCW = Int(25..35);
+//type StandingCL = Int(25..35);
+//type StandingDW = Int(25..35);
+//type StandingDL = Int(25..35);
+
+env StandingAW aw;
+env StandingAL al;
+env StandingBW bw;
+env StandingBL bl;
+env StandingCW cw;
+env StandingCL cl;
+env StandingDW dw;
+env StandingDL dl;
+
+asm alw aw <= AWUB;
+asm alw al <= ALUB;
+asm alw bw <= BWUB;
+asm alw bl <= BLUB;
+asm alw cw <= CWUB;
+asm alw cl <= CLUB;
+asm alw dw <= DWUB;
+asm alw dl <= DLUB;
+
+sys {AB, AC, AD, BC, BD, CD, noGame} game;
+
+define Ainitial := aw=Asecondwin & al=Asecondlose;
+define Binitial := bw=Bsecondwin & bl=Bsecondlose;
+define Cinitial := cw=Csecondwin & cl=Csecondlose;
+define Dinitial := dw=Dsecondwin & dl=Dsecondlose;
+
+asm ini Ainitial & Binitial & Cinitial & Dinitial;
+
+asm alw game=AB implies (gameOutcomeAB() & noChangeC() & noChangeD());
+gar alw game=AB implies (BwantstowinA());
+asm alw game=AC implies (gameOutcomeAC() & noChangeB() & noChangeD());
+gar alw game=AC implies (CwantstowinA());
+asm alw game=AD implies (gameOutcomeAD() & noChangeB() & noChangeC());
+gar alw game=AD implies (DwantstowinA());
+asm alw game=BC implies (gameOutcomeBC() & noChangeA() & noChangeD());
+gar alw game=BC implies (BwantstowinC() & CwantstowinB());
+asm alw game=BD implies (gameOutcomeBD() & noChangeA() & noChangeC());
+gar alw game=BD implies (BwantstowinD() & DwantstowinB());
+asm alw game=CD implies (gameOutcomeCD() & noChangeA() & noChangeB());
+gar alw game=CD implies (CwantstowinD() & DwantstowinC());
+asm alw game=noGame implies (noChangeA() & noChangeB() & noChangeC() & noChangeD());
+
+gar trig [true]* [game = AB | game = CD]{2} |=> [false];
+gar trig [true]* [game = AC | game = BD]{2} |=> [false];
+gar trig [true]* [game = AD | game = BC]{2} |=> [false];
+
+gar alw game=noGame implies (AfinishAllGame() & BfinishAllGame() & CfinishAllGame() & DfinishAllGame());
+gar alw (aw + al + Asecondtie = maxGame) implies (game != AB & game != AC & game != AD);
+gar alw (bw + bl + Bsecondtie = maxGame) implies (game != AB & game != BC & game != BD);
+gar alw (cw + cl + Csecondtie = maxGame) implies (game != AC & game != BC & game != CD);
+gar alw (dw + dl + Dsecondtie = maxGame) implies (game != AD & game != BD & game != CD);
+
+predicate BwantstowinA() {
+	// It should not be the case that
+	!(
+		// Case 1: team B will be eliminated from the playoffs if it beats team A and
+		// Case 1.1: team B is eliminated in the second half season
+		(
+			BgotEliminatedInSecond(bw+1, bl, aw, al+1, cw, cl, dw, dl)
+	   	) &
+	   	// Case 1.2: team B is eliminated in the overall season
+	   	(
+	   		// Case 1.2.1: neither the winner team nor team B can win the second half, and team B can't have the best overall standings or
+		   	(
+		   		// Case 1.2.1.1: team A is eliminated in the second half and
+		   		(
+		   			AgotEliminatedInSecond(aw, al+1, bw+1, bl, cw, cl, dw, dl)
+		   		) &
+		   		// Case 1.2.1.2: team B is eliminated in the second half and
+		   		(
+		   			BgotEliminatedInSecond(bw+1, bl, aw, al+1, cw, cl, dw, dl)
+		   		) &
+		   		// Case 1.2.1.3: team B can't win the overall season
+		   		(
+		   			BeliminatedByAOverall(bw+1, bl, aw, al+1) |
+		   			BeliminatedByCOverall(bw+1, bl, cw, cl) |
+			   		BeliminatedByDOverall(bw+1, bl, dw, dl)
+		   		)
+		   	) |
+		   	// Case 1.2.2: the first half winner team also wins the second half and team B can't win the second or the third place in the overall season
+		   	(
+		   		// Case 1.2.2.1: team A wins the second half season
+		   		(
+		   			AwinInSecond(aw, al+1, bw+1, bl, cw, cl, dw, dl)
+		   		) &
+		   		// Case 1.2.2.2: there are two teams that beat team B in the overall season
+		   		(
+		   			BeliminatedByCOverall(bw+1, bl, cw, cl) &
+			   		BeliminatedByDOverall(bw+1, bl, dw, dl)
+		   		)
+		   	)
+	   	) &
+	   	// Case 2: team B will still have a chance to advance if it loses to team A
+	   	!(
+			(
+				BgotEliminatedInSecond(bw, bl+1, aw+1, al, cw, cl, dw, dl)
+		   	) &
+		   	(
+			   	(
+			   		(
+			   			AgotEliminatedInSecond(aw+1, al, bw, bl+1, cw, cl, dw, dl)
+			   		) &
+			   		(
+			   			BgotEliminatedInSecond(bw, bl+1, aw+1, al, cw, cl, dw, dl)
+			   		) &
+			   		(
+			   			BeliminatedByAOverall(bw, bl+1, aw+1, al) |
+			   			BeliminatedByCOverall(bw, bl+1, cw, cl) |
+				   		BeliminatedByDOverall(bw, bl+1, dw, dl)
+			   		)
+			   	) |
+			   	(
+			   		(
+			   			AwinInSecond(aw+1, al, bw, bl+1, cw, cl, dw, dl)
+			   		) &
+			   		(
+			   			BeliminatedByCOverall(bw, bl+1, cw, cl) &
+			   			BeliminatedByDOverall(bw, bl+1, dw, dl)
+			   		)
+			   	)
+		   	)
+	   	)
+	)
+}
+predicate BwantstowinC() {
+	!(
+		(
+			BgotEliminatedInSecond(bw+1, bl, aw, al, cw, cl+1, dw, dl)
+	   	) &
+	   	(
+		   	(
+		   		(
+		   			AgotEliminatedInSecond(aw, al, bw+1, bl, cw, cl+1, dw, dl)
+		   		) &
+		   		(
+		   			BgotEliminatedInSecond(bw+1, bl, aw, al, cw, cl+1, dw, dl)
+		   		) &
+		   		(
+		   			BeliminatedByAOverall(bw+1, bl, aw, al) |
+		   			BeliminatedByCOverall(bw+1, bl, cw, cl+1) |
+			   		BeliminatedByDOverall(bw+1, bl, dw, dl)
+		   		)
+		   	) |
+		   	(
+		   		(
+		   			AwinInSecond(aw, al, bw+1, bl, cw, cl+1, dw, dl)
+		   		) &
+		   		(
+		   			BeliminatedByCOverall(bw+1, bl, cw, cl+1) &
+			   		BeliminatedByDOverall(bw+1, bl, dw, dl)
+		   		)
+		   	)
+	   	) &
+	   	!(
+			(
+				BgotEliminatedInSecond(bw, bl+1, aw, al, cw+1, cl, dw, dl)
+		   	) &
+		   	(
+			   	(
+			   		(
+			   			AgotEliminatedInSecond(aw, al, bw, bl+1, cw+1, cl, dw, dl)
+			   		) &
+			   		(
+			   			BgotEliminatedInSecond(bw, bl+1, aw, al, cw+1, cl, dw, dl)
+			   		) &
+			   		(
+			   			BeliminatedByAOverall(bw, bl+1, aw, al) |
+			   			BeliminatedByCOverall(bw, bl+1, cw+1, cl) |
+				   		BeliminatedByDOverall(bw, bl+1, dw, dl)
+			   		)
+			   	) |
+			   	(
+			   		(
+			   			AwinInSecond(aw, al, bw, bl+1, cw+1, cl, dw, dl)
+			   		) &
+			   		(
+			   			BeliminatedByCOverall(bw, bl+1, cw+1, cl) &
+			   			BeliminatedByDOverall(bw, bl+1, dw, dl)
+			   		)
+			   	)
+		   	)
+	   	)
+	)
+}
+predicate BwantstowinD() {
+	!(
+		(
+			BgotEliminatedInSecond(bw+1, bl, aw, al, cw, cl, dw, dl+1)
+	   	) &
+	   	(
+		   	(
+		   		(
+		   			AgotEliminatedInSecond(aw, al, bw+1, bl, cw, cl, dw, dl+1)
+		   		) &
+		   		(
+		   			BgotEliminatedInSecond(bw+1, bl, aw, al, cw, cl, dw, dl+1)
+		   		) &
+		   		(
+		   			BeliminatedByAOverall(bw+1, bl, aw, al) |
+		   			BeliminatedByCOverall(bw+1, bl, cw, cl) |
+			   		BeliminatedByDOverall(bw+1, bl, dw, dl+1)
+		   		)
+		   	) |
+		   	(
+		   		(
+		   			AwinInSecond(aw, al, bw+1, bl, cw, cl, dw, dl+1)
+		   		) &
+		   		(
+		   			BeliminatedByCOverall(bw+1, bl, cw, cl) &
+			   		BeliminatedByDOverall(bw+1, bl, dw, dl+1)
+		   		)
+		   	)
+	   	) &
+	   	!(
+			(
+				BgotEliminatedInSecond(bw, bl+1, aw, al, cw, cl, dw+1, dl)
+		   	) &
+		   	(
+			   	(
+			   		(
+			   			AgotEliminatedInSecond(aw, al, bw, bl+1, cw, cl, dw+1, dl)
+			   		) &
+			   		(
+			   			BgotEliminatedInSecond(bw, bl+1, aw, al, cw, cl, dw+1, dl)
+			   		) &
+			   		(
+			   			BeliminatedByAOverall(bw, bl+1, aw, al) |
+			   			BeliminatedByCOverall(bw, bl+1, cw, cl) |
+				   		BeliminatedByDOverall(bw, bl+1, dw+1, dl)
+			   		)
+			   	) |
+			   	(
+			   		(
+			   			AwinInSecond(aw, al, bw, bl+1, cw, cl, dw+1, dl)
+			   		) &
+			   		(
+			   			BeliminatedByCOverall(bw, bl+1, cw, cl) &
+			   			BeliminatedByDOverall(bw, bl+1, dw+1, dl)
+			   		)
+			   	)
+		   	)
+	   	)
+	)
+}
+predicate CwantstowinA() {
+	!(
+		(
+			CgotEliminatedInSecond(cw+1, cl, aw, al+1, bw, bl, dw, dl)
+	   	) &
+	   	(
+		   	(
+		   		(
+		   			AgotEliminatedInSecond(aw, al+1, bw, bl, cw+1, cl, dw, dl)
+		   		) &
+		   		(
+		   			CgotEliminatedInSecond(cw+1, cl, aw, al+1, bw, bl, dw, dl)
+		   		) &
+		   		(
+		   			CeliminatedByAOverall(cw+1, cl, aw, al+1) |
+		   			CeliminatedByBOverall(cw+1, cl, bw, bl) |
+			   		CeliminatedByDOverall(cw+1, cl, dw, dl)
+		   		)
+		   	) |
+		   	(
+		   		(
+		   			AwinInSecond(aw, al+1, bw, bl, cw+1, cl, dw, dl)
+		   		) &
+		   		(
+		   			CeliminatedByBOverall(cw+1, cl, bw, bl) &
+			   		CeliminatedByDOverall(cw+1, cl, dw, dl)
+		   		)
+		   	)
+	   	) &
+	   	!(
+			(
+				CgotEliminatedInSecond(cw, cl+1, aw+1, al, bw, bl, dw, dl)
+		   	) &
+		   	(
+			   	(
+			   		(
+			   			AgotEliminatedInSecond(aw+1, al, bw+1, bl, cw, cl+1, dw, dl)
+			   		) &
+			   		(
+			   			CgotEliminatedInSecond(cw, cl+1, aw+1, al, bw, bl, dw, dl)
+			   		) &
+			   		(
+			   			CeliminatedByAOverall(cw, cl+1, aw+1, al) |
+			   			CeliminatedByBOverall(cw, cl+1, bw, bl) |
+				   		CeliminatedByDOverall(cw, cl+1, dw, dl)
+			   		)
+			   	) |
+			   	(
+			   		(
+			   			AwinInSecond(aw+1, al, bw, bl, cw, cl+1, dw, dl)
+			   		) &
+			   		(
+			   			CeliminatedByBOverall(cw, cl+1, bw, bl) &
+				   		CeliminatedByDOverall(cw, cl+1, dw, dl)
+			   		)
+			   	)
+		   	)
+	   	)
+	)
+}
+predicate CwantstowinB() {
+	!(
+		(
+			CgotEliminatedInSecond(cw+1, cl, aw, al, bw, bl+1, dw, dl)
+	   	) &
+	   	(
+		   	(
+		   		(
+		   			AgotEliminatedInSecond(aw, al, bw, bl+1, cw+1, cl, dw, dl)
+		   		) &
+		   		(
+		   			CgotEliminatedInSecond(cw+1, cl, aw, al, bw, bl+1, dw, dl)
+		   		) &
+		   		(
+		   			CeliminatedByAOverall(cw+1, cl, aw, al) |
+		   			CeliminatedByBOverall(cw+1, cl, bw, bl+1) |
+			   		CeliminatedByDOverall(cw+1, cl, dw, dl)
+		   		)
+		   	) |
+		   	(
+		   		(
+		   			AwinInSecond(aw, al, bw, bl+1, cw+1, cl, dw, dl)
+		   		) &
+		   		(
+		   			CeliminatedByBOverall(cw+1, cl, bw, bl+1) &
+			   		CeliminatedByDOverall(cw+1, cl, dw, dl)
+		   		)
+		   	)
+	   	) &
+	   	!(
+			(
+				CgotEliminatedInSecond(cw, cl+1, aw, al, bw+1, bl, dw, dl)
+		   	) &
+		   	(
+			   	(
+			   		(
+			   			AgotEliminatedInSecond(aw, al, bw+1, bl, cw, cl+1, dw, dl)
+			   		) &
+			   		(
+			   			CgotEliminatedInSecond(cw, cl+1, aw, al, bw+1, bl, dw, dl)
+			   		) &
+			   		(
+			   			CeliminatedByAOverall(cw, cl+1, aw, al) |
+			   			CeliminatedByBOverall(cw, cl+1, bw+1, bl) |
+				   		CeliminatedByDOverall(cw, cl+1, dw, dl)
+			   		)
+			   	) |
+			   	(
+			   		(
+			   			AwinInSecond(aw, al, bw+1, bl, cw, cl+1, dw, dl)
+			   		) &
+			   		(
+			   			CeliminatedByBOverall(cw, cl+1, bw+1, bl) &
+				   		CeliminatedByDOverall(cw, cl+1, dw, dl)
+			   		)
+			   	)
+		   	)
+	   	)
+	)
+}
+predicate CwantstowinD() {
+	!(
+		(
+			CgotEliminatedInSecond(cw+1, cl, aw, al, bw, bl, dw, dl+1)
+	   	) &
+	   	(
+		   	(
+		   		(
+		   			AgotEliminatedInSecond(aw, al, bw, bl, cw+1, cl, dw, dl)
+		   		) &
+		   		(
+		   			CgotEliminatedInSecond(cw+1, cl, aw, al, bw, bl+1, dw, dl)
+		   		) &
+		   		(
+		   			CeliminatedByAOverall(cw+1, cl, aw, al) |
+		   			CeliminatedByBOverall(cw+1, cl, bw, bl) |
+			   		CeliminatedByDOverall(cw+1, cl, dw, dl+1)
+		   		)
+		   	) |
+		   	(
+		   		(
+		   			AwinInSecond(aw, al, bw, bl, cw+1, cl, dw, dl+1)
+		   		) &
+		   		(
+		   			CeliminatedByBOverall(cw+1, cl, bw, bl) &
+			   		CeliminatedByDOverall(cw+1, cl, dw, dl+1)
+		   		)
+		   	)
+	   	) &
+	   	!(
+			(
+				CgotEliminatedInSecond(cw, cl+1, aw, al, bw, bl, dw+1, dl)
+		   	) &
+		   	(
+			   	(
+			   		(
+			   			AgotEliminatedInSecond(aw, al, bw, bl, cw, cl+1, dw+1, dl)
+			   		) &
+			   		(
+			   			CgotEliminatedInSecond(cw, cl+1, aw, al, bw, bl, dw+1, dl)
+			   		) &
+			   		(
+			   			CeliminatedByAOverall(cw, cl+1, aw, al) |
+			   			CeliminatedByBOverall(cw, cl+1, bw, bl) |
+				   		CeliminatedByDOverall(cw, cl+1, dw+1, dl)
+			   		)
+			   	) |
+			   	(
+			   		(
+			   			AwinInSecond(aw, al, bw, bl, cw, cl+1, dw+1, dl)
+			   		) &
+			   		(
+			   			CeliminatedByBOverall(cw, cl+1, bw, bl) &
+				   		CeliminatedByDOverall(cw, cl+1, dw+1, dl)
+			   		)
+			   	)
+		   	)
+	   	)
+	)
+}
+predicate DwantstowinA() {
+	!(
+		(
+			DgotEliminatedInSecond(dw+1, dl, aw, al+1, bw, bl, cw, cl)
+	   	) &
+	   	(
+		   	(
+		   		(
+		   			AgotEliminatedInSecond(aw, al+1, bw, bl, cw, cl, dw+1, dl)
+		   		) &
+		   		(
+		   			DgotEliminatedInSecond(dw+1, dl, aw, al+1, bw, bl, cw, cl)
+		   		) &
+		   		(
+		   			DeliminatedByAOverall(dw+1, dl, aw, al+1) |
+		   			DeliminatedByBOverall(dw+1, dl, bw, bl) |
+			   		DeliminatedByCOverall(dw+1, dl, cw, cl)
+		   		)
+		   	) |
+		   	(
+		   		(
+		   			AwinInSecond(aw, al+1, bw, bl, cw, cl, dw+1, dl)
+		   		) &
+		   		(
+		   			DeliminatedByBOverall(dw+1, dl, bw, bl) &
+			   		DeliminatedByCOverall(dw+1, dl, cw, cl)
+		   		)
+		   	)
+	   	) &
+	   	!(
+			(
+				DgotEliminatedInSecond(dw, dl+1, aw+1, al, bw, bl, cw, cl)
+		   	) &
+		   	(
+			   	(
+			   		(
+			   			AgotEliminatedInSecond(aw+1, al, bw, bl, cw, cl, dw, dl+1)
+			   		) &
+			   		(
+			   			DgotEliminatedInSecond(dw, dl+1, aw+1, al, bw, bl, cw, cl)
+			   		) &
+			   		(
+			   			DeliminatedByAOverall(dw, dl+1, aw+1, al) |
+			   			DeliminatedByBOverall(dw, dl+1, bw, bl) |
+				   		DeliminatedByCOverall(dw, dl+1, cw, cl)
+			   		)
+			   	) |
+			   	(
+			   		(
+			   			AwinInSecond(aw+1, al, bw, bl, cw, cl, dw, dl+1)
+			   		) &
+			   		(
+			   			DeliminatedByBOverall(dw, dl+1, bw, bl) &
+				   		DeliminatedByCOverall(dw, dl+1, cw, cl)
+			   		)
+			   	)
+		   	)
+	   	)
+	)
+}
+predicate DwantstowinB() {
+	!(
+		(
+			DgotEliminatedInSecond(dw+1, dl, aw, al, bw, bl+1, cw, cl)
+	   	) &
+	   	(
+		   	(
+		   		(
+		   			AgotEliminatedInSecond(aw, al, bw, bl+1, cw, cl, dw+1, dl)
+		   		) &
+		   		(
+		   			DgotEliminatedInSecond(dw+1, dl, aw, al, bw, bl+1, cw, cl)
+		   		) &
+		   		(
+		   			DeliminatedByAOverall(dw+1, dl, aw, al) |
+		   			DeliminatedByBOverall(dw+1, dl, bw, bl+1) |
+			   		DeliminatedByCOverall(dw+1, dl, cw, cl)
+		   		)
+		   	) |
+		   	(
+		   		(
+		   			AwinInSecond(aw, al, bw, bl+1, cw, cl, dw+1, dl)
+		   		) &
+		   		(
+		   			DeliminatedByBOverall(dw+1, dl, bw, bl+1) &
+			   		DeliminatedByCOverall(dw+1, dl, cw, cl)
+		   		)
+		   	)
+	   	) &
+	   	!(
+			(
+				DgotEliminatedInSecond(dw, dl+1, aw, al, bw+1, bl, cw, cl)
+		   	) &
+		   	(
+			   	(
+			   		(
+			   			AgotEliminatedInSecond(aw, al, bw+1, bl, cw, cl, dw, dl+1)
+			   		) &
+			   		(
+			   			DgotEliminatedInSecond(dw, dl+1, aw, al, bw+1, bl, cw, cl)
+			   		) &
+			   		(
+			   			DeliminatedByAOverall(dw, dl+1, aw, al) |
+			   			DeliminatedByBOverall(dw, dl+1, bw+1, bl) |
+				   		DeliminatedByCOverall(dw, dl+1, cw, cl)
+			   		)
+			   	) |
+			   	(
+			   		(
+			   			AwinInSecond(aw, al, bw+1, bl, cw, cl, dw, dl+1)
+			   		) &
+			   		(
+			   			DeliminatedByBOverall(dw, dl+1, bw+1, bl) &
+				   		DeliminatedByCOverall(dw, dl+1, cw, cl)
+			   		)
+			   	)
+		   	)
+	   	)
+	)
+}
+predicate DwantstowinC() {
+	!(
+		(
+			DgotEliminatedInSecond(dw+1, dl, aw, al, bw, bl, cw, cl+1)
+	   	) &
+	   	(
+		   	(
+		   		(
+		   			AgotEliminatedInSecond(aw, al, bw, bl, cw, cl+1, dw+1, dl)
+		   		) &
+		   		(
+		   			DgotEliminatedInSecond(dw+1, dl, aw, al, bw, bl, cw, cl+1)
+		   		) &
+		   		(
+		   			DeliminatedByAOverall(dw+1, dl, aw, al) |
+		   			DeliminatedByBOverall(dw+1, dl, bw, bl) |
+			   		DeliminatedByCOverall(dw+1, dl, cw, cl+1)
+		   		)
+		   	) |
+		   	(
+		   		(
+		   			AwinInSecond(aw, al, bw, bl, cw, cl+1, dw+1, dl)
+		   		) &
+		   		(
+		   			DeliminatedByBOverall(dw+1, dl, bw, bl) &
+			   		DeliminatedByCOverall(dw+1, dl, cw, cl+1)
+		   		)
+		   	)
+	   	) &
+	   	!(
+			(
+				DgotEliminatedInSecond(dw, dl+1, aw, al, bw, bl, cw+1, cl)
+		   	) &
+		   	(
+			   	(
+			   		(
+			   			AgotEliminatedInSecond(aw, al, bw, bl, cw+1, cl, dw, dl+1)
+			   		) &
+			   		(
+			   			DgotEliminatedInSecond(dw, dl+1, aw, al, bw, bl, cw+1, cl)
+			   		) &
+			   		(
+			   			DeliminatedByAOverall(dw, dl+1, aw, al) |
+			   			DeliminatedByBOverall(dw, dl+1, bw, bl) |
+				   		DeliminatedByCOverall(dw, dl+1, cw+1, cl)
+			   		)
+			   	) |
+			   	(
+			   		(
+			   			AwinInSecond(aw, al, bw, bl, cw+1, cl, dw, dl+1)
+			   		) &
+			   		(
+			   			DeliminatedByBOverall(dw, dl+1, bw, bl) &
+				   		DeliminatedByCOverall(dw, dl+1, cw+1, cl)
+			   		)
+			   	)
+		   	)
+	   	)
+	)
+}
+
+predicate AgotEliminatedInSecond(
+	StandingAW a0, StandingAL a1,
+	StandingBW b0, StandingBL b1,
+	StandingCW c0, StandingCL c1,
+	StandingDW d0, StandingDL d1
+) {
+	b0 * (maxGame - Asecondtie) > (maxGame - a1 - Asecondtie) * (maxGame - Bsecondtie) |
+	c0 * (maxGame - Asecondtie) > (maxGame - a1 - Asecondtie) * (maxGame - Csecondtie) |
+	d0 * (maxGame - Asecondtie) > (maxGame - a1 - Asecondtie) * (maxGame - Dsecondtie)
+}
+predicate BgotEliminatedInSecond(
+	StandingBW b0, StandingBL b1,
+	StandingAW a0, StandingAL a1,
+	StandingCW c0, StandingCL c1,
+	StandingDW d0, StandingDL d1
+) {
+	a0 * (maxGame - Bsecondtie) > (maxGame - b1 - Bsecondtie) * (maxGame - Asecondtie) |
+	c0 * (maxGame - Bsecondtie) > (maxGame - b1 - Bsecondtie) * (maxGame - Csecondtie) |
+	d0 * (maxGame - Bsecondtie) > (maxGame - b1 - Bsecondtie) * (maxGame - Dsecondtie)
+}
+predicate CgotEliminatedInSecond(
+	StandingCW c0, StandingCL c1,
+	StandingAW a0, StandingAL a1,
+	StandingBW b0, StandingBL b1,
+	StandingDW d0, StandingDL d1
+) {
+	a0 * (maxGame - Csecondtie) > (maxGame - c1 - Csecondtie) * (maxGame - Asecondtie) |
+	b0 * (maxGame - Csecondtie) > (maxGame - c1 - Csecondtie) * (maxGame - Bsecondtie) |
+	d0 * (maxGame - Csecondtie) > (maxGame - c1 - Csecondtie) * (maxGame - Dsecondtie)
+}
+predicate DgotEliminatedInSecond(
+	StandingDW d0, StandingDL d1,
+	StandingAW a0, StandingAL a1,
+	StandingBW b0, StandingBL b1,
+	StandingCW c0, StandingCL c1
+) {
+	a0 * (maxGame - Dsecondtie) > (maxGame - d1 - Dsecondtie) * (maxGame - Asecondtie) |
+	b0 * (maxGame - Dsecondtie) > (maxGame - d1 - Dsecondtie) * (maxGame - Bsecondtie) |
+	c0 * (maxGame - Dsecondtie) > (maxGame - d1 - Dsecondtie) * (maxGame - Csecondtie)
+}
+predicate AwinInSecond(
+	StandingAW a0, StandingAL a1,
+	StandingBW b0, StandingBL b1,
+	StandingCW c0, StandingCL c1,
+	StandingDW d0, StandingDL d1
+) {
+	a0 * (maxGame - Bsecondtie) > (maxGame - b1 - Bsecondtie) * (maxGame - Asecondtie) &
+	a0 * (maxGame - Csecondtie) > (maxGame - c1 - Csecondtie) * (maxGame - Asecondtie) &
+	a0 * (maxGame - Dsecondtie) > (maxGame - d1 - Dsecondtie) * (maxGame - Asecondtie)
+}
+
+predicate BeliminatedByAOverall(
+	StandingBW b0, StandingBL b1,
+	StandingAW a0, StandingAL a1
+) {
+	(b0+Bfirstwin)  * (totalGame - (Asecondtie+Afirsttie)) > (totalGame - (a1+Afirstlose) - (Asecondtie+Afirsttie)) * (totalGame - (Bsecondtie+Bfirsttie))
+}
+predicate BeliminatedByCOverall(
+	StandingBW b0, StandingBL b1,
+	StandingCW c0, StandingCL c1
+) {
+	(b0+Bfirstwin)  * (totalGame - (Csecondtie+Cfirsttie)) > (totalGame - (c1+Cfirstlose) - (Csecondtie+Cfirsttie)) * (totalGame - (Bsecondtie+Bfirsttie))
+}
+predicate BeliminatedByDOverall(
+	StandingBW b0, StandingBL b1,
+	StandingDW d0, StandingDL d1
+) {
+	(b0+Bfirstwin)  * (totalGame - (Dsecondtie+Dfirsttie)) > (totalGame - (d1+Dfirstlose) - (Dsecondtie+Dfirsttie)) * (totalGame - (Bsecondtie+Bfirsttie))
+}
+predicate CeliminatedByAOverall(
+	StandingCW c0, StandingCL c1,
+	StandingAW a0, StandingAL a1
+) {
+	(c0+Cfirstwin)  * (totalGame - (Asecondtie+Afirsttie)) > (totalGame - (a1+Afirstlose) - (Asecondtie+Afirsttie)) * (totalGame - (Csecondtie+Cfirsttie))
+}
+predicate CeliminatedByBOverall(
+	StandingCW c0, StandingCL c1,
+	StandingBW b0, StandingBL b1
+) {
+	(c0+Cfirstwin)  * (totalGame - (Bsecondtie)) > (totalGame - (b1+Bfirstlose) - (Bsecondtie+Bfirsttie)) * (totalGame - (Csecondtie+Cfirsttie))
+}
+predicate CeliminatedByDOverall(
+	StandingCW c0, StandingCL c1,
+	StandingDW d0, StandingDL d1
+) {
+	(c0+Cfirstwin)  * (totalGame - (Dsecondtie+Dfirsttie)) > (totalGame - (d1+Dfirstlose) - (Dsecondtie+Dfirsttie)) * (totalGame - (Csecondtie+Cfirsttie))
+}
+predicate DeliminatedByAOverall(
+	StandingDW d0, StandingDL d1,
+	StandingAW a0, StandingAL a1
+) {
+	(d0+Dfirstwin)  * (totalGame - (Asecondtie+Afirsttie)) > (totalGame - (a1+Afirstlose) - (Asecondtie+Afirsttie)) * (totalGame - (Dsecondtie+Dfirsttie))
+}
+predicate DeliminatedByBOverall(
+	StandingDW d0, StandingDL d1,
+	StandingBW b0, StandingBL b1
+) {
+	(d0+Dfirstwin)  * (totalGame - (Bsecondtie+Bfirsttie)) > (totalGame - (b1+Bfirstlose) - (Bsecondtie+Bfirsttie)) * (totalGame - (Dsecondtie+Dfirsttie))
+}
+predicate DeliminatedByCOverall(
+	StandingDW d0, StandingDL d1,
+	StandingCW c0, StandingCL c1
+) {
+	(d0+Dfirstwin)  * (totalGame - (Csecondtie+Cfirsttie)) > (totalGame - (c1+Cfirstlose) - (Csecondtie+Cfirsttie)) * (totalGame - (Dsecondtie+Dfirsttie))
+}
+
+predicate gameOutcomeAB() {
+  (next(aw) = aw + 1 & next(al) = al & next(bw) = bw & next(bl) = bl + 1) |
+  (next(bw) = bw + 1 & next(bl) = bl & next(aw) = aw & next(al) = al + 1)
+}
+predicate gameOutcomeCD() {
+  (next(cw) = cw + 1 & next(cl) = cl & next(dw) = dw & next(dl) = dl + 1) |
+  (next(dw) = dw + 1 & next(dl) = dl & next(cw) = cw & next(cl) = cl + 1)
+}
+predicate gameOutcomeAC() {
+  (next(aw) = aw + 1 & next(al) = al & next(cw) = cw & next(cl) = cl + 1) |
+  (next(cw) = cw + 1 & next(cl) = cl & next(aw) = aw & next(al) = al + 1)
+}
+predicate gameOutcomeBD() {
+  (next(bw) = bw + 1 & next(bl) = bl & next(dw) = dw & next(dl) = dl + 1) |
+  (next(dw) = dw + 1 & next(dl) = dl & next(bw) = bw & next(bl) = bl + 1)
+}
+predicate gameOutcomeAD() {
+  (next(aw) = aw + 1 & next(al) = al & next(dw) = dw & next(dl) = dl + 1) |
+  (next(dw) = dw + 1 & next(dl) = dl & next(aw) = aw & next(al) = al + 1)
+}
+predicate gameOutcomeBC() {
+  (next(bw) = bw + 1 & next(bl) = bl & next(cw) = cw & next(cl) = cl + 1) |
+  (next(cw) = cw + 1 & next(cl) = cl & next(bw) = bw & next(bl) = bl + 1)
+}
+
+predicate noChangeA() {
+  next(aw) = aw & next(al) = al
+}
+predicate noChangeB() {
+  next(bw) = bw & next(bl) = bl
+}
+predicate noChangeC() {
+  next(cw) = cw & next(cl) = cl
+}
+predicate noChangeD() {
+  next(dw) = dw & next(dl) = dl
+}
+
+predicate AfinishAllGame():
+	aw + al + Asecondtie = maxGame;
+predicate BfinishAllGame():
+	bw + bl + Bsecondtie = maxGame;
+predicate CfinishAllGame():
+	cw + cl + Csecondtie = maxGame;
+predicate DfinishAllGame():
+	dw + dl + Dsecondtie = maxGame;	
+
+gar alwEv AfinishAllGame() & BfinishAllGame() & CfinishAllGame() & DfinishAllGame();
